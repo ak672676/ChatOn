@@ -3,6 +3,7 @@ const router = express.Router();
 const middleware = require("./middleware/middleware");
 
 const userCtrl = require("../controllers/users");
+const fakeUsersCtrl = require("../controllers/fake-users");
 
 router.post("/register", userCtrl.registerUser);
 
@@ -22,4 +23,37 @@ router.post(
   userCtrl.makeFriendRequest
 );
 
+router.get(
+  "/get-user-data/:userId",
+  middleware.authorize,
+  userCtrl.getUserData
+);
+
+router.get(
+  "/get-friend-requests",
+  middleware.authorize,
+  userCtrl.getFriendRequests
+);
+
+router.post(
+  "/resolve-friend-request/:from/:to",
+  middleware.authorize,
+  userCtrl.resolveFriendRequest
+);
+
+router.post("/create-post", middleware.authorize, userCtrl.createPost);
+router.get("/all", userCtrl.getAllUsers);
+router.post(
+  "/like-unlike/:ownerid/:postid",
+  middleware.authorize,
+  userCtrl.likeUnlike
+);
+
+router.post(
+  "/post-comment/:ownerid/:postid",
+  middleware.authorize,
+  userCtrl.postCommentOnPost
+);
+
+router.post("/create-fake-users", fakeUsersCtrl.createFakeUsers);
 module.exports = router;

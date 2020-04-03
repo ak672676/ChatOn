@@ -14,7 +14,10 @@
         <div class="row mb-5">
           <div class="col-xl-6 col-lg-8">
             <app-result-request
-              *ngFor="let number of [1, 2, 3, 4, 5, 6, 7]"
+              use="request"
+              *ngFor="let user of friendRequests"
+              [resultRequest]="user"
+              (resultRequestChange)="updateFriendRequests($event)"
             ></app-result-request>
           </div>
           <div class="col-xl-6 d-lg-none d-xl-block" style="margin-top: 14vh;">

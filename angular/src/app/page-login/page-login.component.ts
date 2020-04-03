@@ -2,7 +2,7 @@ import { Component, OnInit } from "@angular/core";
 import { ApiService } from "../api.service";
 import { LocalStorageService } from "../local-storage.service";
 import { Router } from "@angular/router";
-
+import { Title } from "@angular/platform-browser";
 @Component({
   selector: "app-page-login",
   templateUrl: "./page-login.component.html",
@@ -12,7 +12,8 @@ export class PageLoginComponent implements OnInit {
   constructor(
     private api: ApiService,
     private storage: LocalStorageService,
-    private router: Router
+    private router: Router,
+    private title: Title
   ) {}
 
   public formError = "";
@@ -21,7 +22,9 @@ export class PageLoginComponent implements OnInit {
     email: "",
     password: ""
   };
-  ngOnInit() {}
+  ngOnInit() {
+    this.title.setTitle("ChatOn - Login");
+  }
 
   public formSubmit() {
     this.formError = "";

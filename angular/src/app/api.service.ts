@@ -1,12 +1,17 @@
 import { Injectable } from "@angular/core";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { LocalStorageService } from "./local-storage.service";
-
+import { EventEmitterService } from "./event-emitter.service";
+import { resolve } from "url";
 @Injectable({
   providedIn: "root"
 })
 export class ApiService {
-  constructor(private http: HttpClient, private storage: LocalStorageService) {}
+  constructor(
+    private http: HttpClient,
+    private storage: LocalStorageService,
+    private events: EventEmitterService
+  ) {}
 
   private baseUrl = "http://localhost:3000";
   private successHandler(value) {
@@ -71,6 +76,38 @@ export class ApiService {
     };
     this.makeRequest(requestObject).then(val => {
       console.log(val);
+      if (val.statusCode === 201) {
+        this.events.onAlertEvent.emit("Successfully send a friend request.");
+      } else {
+        this.events.onAlertEvent.emit(
+          "Something went wrong and we could not send a friend request.May be you would alraedy send a request."
+        );
+      }
+    });
+  }
+
+  public resolveFriendRequest(resolution, id) {
+    let to = this.storage.getParsedToken()._id;
+    return new Promise((resolve, reject) => {
+      let requestObject = {
+        location: `users/resolve-friend-request/${id}/${to}?resolution=${resolution}`,
+        type: "POST",
+        authorize: true
+      };
+      this.makeRequest(requestObject).then(val => {
+        if (val.statusCode === 201) {
+          this.events.updateNumOfFriendRequestsEvent.emit();
+          let resolutioned = resolution == "accept" ? "accepted" : "declined";
+          this.events.onAlertEvent.emit(
+            `Successfully ${resolutioned} friend request.`
+          );
+        } else {
+          this.events.onAlertEvent.emit(
+            "Something went wrong and we could not handle your friend request"
+          );
+        }
+        resolve(val);
+      });
     });
   }
 }

@@ -15,6 +15,7 @@
         <div class="row mb-5">
           <div class="col-xl-6 col-lg-8">
             <app-result-request
+              use="result"
               *ngFor="let result of results"
               [resultRequest]="result"
             ></app-result-request>

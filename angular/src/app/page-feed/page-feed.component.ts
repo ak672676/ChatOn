@@ -1,22 +1,91 @@
 import { Component, OnInit } from "@angular/core";
-
+import { Title } from "@angular/platform-browser";
+import { LocalStorageService } from "../local-storage.service";
 import { ApiService } from "../api.service";
+import { EventEmitterService } from "../event-emitter.service";
+
 @Component({
   selector: "app-page-feed",
   templateUrl: "./page-feed.component.html",
   styleUrls: ["./page-feed.component.css"]
 })
 export class PageFeedComponent implements OnInit {
-  constructor(private api: ApiService) {}
+  constructor(
+    private api: ApiService,
+    private title: Title,
+    private storage: LocalStorageService,
+    private events: EventEmitterService
+  ) {}
 
   ngOnInit() {
+    this.title.setTitle("ChatOn - Your Feed");
     let requestObject = {
       type: "GET",
       location: "users/generate-feed",
       authorize: true
     };
     this.api.makeRequest(requestObject).then(val => {
+      if (val.statusCode === 200) {
+        this.posts.col1 = val.posts.filter((val, i) => i % 4 === 0);
+        this.posts.col2 = val.posts.filter((val, i) => i % 4 === 1);
+        this.posts.col3 = val.posts.filter((val, i) => i % 4 === 2);
+        this.posts.col4 = val.posts.filter((val, i) => i % 4 === 3);
+      } else {
+        console.log("Something went worng your feeds can not be created");
+        this.events.onAlertEvent.emit(
+          "Something went worng your feeds can not be created"
+        );
+      }
+
       console.log(val);
+      console.log("POST OBJECT");
+      console.log(this.posts);
+    });
+  }
+
+  public posts = {
+    col1: [],
+    col2: [],
+    col3: [],
+    col4: []
+  };
+  public newPostContent: string = "";
+  public newPostTheme: string = this.storage.getPostTheme() || "primary";
+
+  public changeTheme(newTheme) {
+    this.newPostTheme = newTheme;
+    console.log(this.newPostTheme);
+    this.storage.setPostTheme(newTheme);
+  }
+
+  public createPost() {
+    if (this.newPostContent.length == 0) {
+      return this.events.onAlertEvent.emit(
+        "No content for your post was provided."
+      );
+    }
+    console.log("Create Post");
+    let requestObject = {
+      location: "users/create-post",
+      type: "POST",
+      authorize: true,
+      body: {
+        theme: this.newPostTheme,
+        content: this.newPostContent
+      }
+    };
+
+    this.api.makeRequest(requestObject).then(val => {
+      if (val.statusCode == 201) {
+        // alert("AMIT");
+        val.newPost.ago = "Now";
+        this.posts.col1.unshift(val.newPost);
+      } else {
+        this.events.onAlertEvent.emit(
+          "Something went worng your post can not be created"
+        );
+      }
+      this.newPostContent = "";
     });
   }
 }

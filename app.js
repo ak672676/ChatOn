@@ -4,14 +4,24 @@ const express = require("express");
 const path = require("path");
 const cookieParser = require("cookie-parser");
 const logger = require("morgan");
-
+// const csp = require("express-csp-header");
 const passport = require("passport");
 
 require("./mvc/models/db");
 const indexRouter = require("./mvc/routes/index");
 const usersRouter = require("./mvc/routes/users");
 
+///Remove
+
 const app = express();
+// app.use(
+//   csp({
+//     policies: {
+//       "default-src": [csp.NONE],
+//       "img-src": [csp.SELF]
+//     }
+//   })
+// );
 
 // view engine setup
 app.set("views", path.join(__dirname, "mvc", "views"));
@@ -22,6 +32,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
+
+app.use(function(req, res, next) {
+  res.statusJson = function(statusCode, data) {
+    let obj = {
+      ...data,
+      statusCode: statusCode
+    };
+    res.status(statusCode).json(obj);
+  };
+  next();
+});
 
 app.use(passport.initialize());
 

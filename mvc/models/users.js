@@ -3,10 +3,6 @@ const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 
 const commentSchema = new mongoose.Schema({
-  commenter_name: {
-    type: String,
-    required: true
-  },
   commenter_id: {
     type: String,
     required: true
@@ -31,8 +27,8 @@ const postSchema = new mongoose.Schema({
     default: "primary"
   },
   likes: {
-    type: Number,
-    default: 0
+    type: [String],
+    default: []
   },
   comments: {
     type: [commentSchema],
@@ -43,8 +39,7 @@ const postSchema = new mongoose.Schema({
 const messageSchema = new mongoose.Schema({
   from_id: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   content: [
     {
@@ -66,7 +61,7 @@ const userSchema = new mongoose.Schema({
   posts: [postSchema],
   messages: [messageSchema],
   notifications: [String],
-  profile_image: String,
+  profile_image: { type: String, default: "default-avatar" },
   new_message_notifications: { type: Number, default: 0 },
   new_notifications: { type: Number, default: 0 }
 });
