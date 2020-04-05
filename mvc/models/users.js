@@ -5,48 +5,48 @@ const jwt = require("jsonwebtoken");
 const commentSchema = new mongoose.Schema({
   commenter_id: {
     type: String,
-    required: true
+    required: true,
   },
   comment_content: {
     type: String,
-    required: true
-  }
+    required: true,
+  },
 });
 
 const postSchema = new mongoose.Schema({
   content: {
     type: String,
-    required: true
+    required: true,
   },
   date: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   theme: {
     type: String,
-    default: "primary"
+    default: "primary",
   },
   likes: {
     type: [String],
-    default: []
+    default: [],
   },
   comments: {
     type: [commentSchema],
-    default: []
-  }
+    default: [],
+  },
 });
 
 const messageSchema = new mongoose.Schema({
   from_id: {
     type: String,
-    required: true
+    required: true,
   },
   content: [
     {
       messenger: String,
-      message: String
-    }
-  ]
+      message: String,
+    },
+  ],
 });
 
 const userSchema = new mongoose.Schema({
@@ -62,30 +62,30 @@ const userSchema = new mongoose.Schema({
   messages: [messageSchema],
   notifications: [String],
   profile_image: { type: String, default: "default-avatar" },
-  new_message_notifications: { type: Number, default: 0 },
-  new_notifications: { type: Number, default: 0 }
+  new_message_notifications: { type: [String], default: [] },
+  new_notifications: { type: Number, default: 0 },
 });
 
-userSchema.methods.setPassword = function(password) {
+userSchema.methods.setPassword = function (password) {
   this.salt = crypto.randomBytes(64).toString("hex");
   this.password = crypto
     .pbkdf2Sync(password, this.salt, 1000, 64, "sha512")
     .toString("hex");
 };
 
-userSchema.methods.validatePassword = function(password) {
+userSchema.methods.validatePassword = function (password) {
   const hash = crypto
     .pbkdf2Sync(password, this.salt, 1000, 64, "sha512")
     .toString("hex");
   return hash === this.password;
 };
 
-userSchema.methods.getJwt = function() {
+userSchema.methods.getJwt = function () {
   return jwt.sign(
     {
       _id: this._id,
       email: this.email,
-      name: this.name
+      name: this.name,
     },
     process.env.JWT_SECRET
   );

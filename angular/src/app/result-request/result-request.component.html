@@ -1,13 +1,16 @@
 <div class="result-request d-flex my-3 align-items-center bg-white shadow">
-  <a href="#" class="p-4 w-max"
+  <a routerLink="/profile/{{ resultRequest._id }}" class="p-4 w-max"
     ><img
+      routerLink="/profile/{{ resultRequest._id }}"
       src="/assets/images/{{ resultRequest.profile_image }}.jpg"
-      class="profile-img-md rounded "
+      class="profile-img-md rounded"
   /></a>
 
   <div>
     <h5>
-      <a href="#" class="link">{{ resultRequest.name }}</a>
+      <a routerLink="/profile/{{ resultRequest._id }}" class="link">{{
+        resultRequest.name
+      }}</a>
     </h5>
     <!-- <h6>Montreal, Canada</h6>
     <div class="small">7 Mutual Friends</div> -->
@@ -74,6 +77,7 @@
       class="btn btn-sm btn-info rounded-pill ml-1"
       data-toggle="modal"
       data-target="#staticBackdrop"
+      routerLink="/profile/{{ resultRequest._id }}"
     >
       View Profile
     </button>
@@ -91,6 +95,7 @@
       class="btn btn-sm btn-success rounded-pill ml-1"
       data-toggle="modal"
       data-target="#staticBackdrop"
+      (click)="updateSendMessageObject(resultRequest._id, resultRequest.name)"
     >
       Send Message
     </button>

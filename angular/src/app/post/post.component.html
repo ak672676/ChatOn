@@ -1,12 +1,18 @@
 <div class="card mt-4">
   <div [ngClass]="'bg-' + post.theme" class="card-header bg-info">
-    <a href="#"
+    <a routerLink="/profile/{{ post.ownerid }}"
       ><img
         class="profile-img-sm rounded-circle"
         src="/assets/images/{{ post.ownerProfileImage }}.jpg"
     /></a>
     <span class="ml-3 h5"
-      ><a ngClass class="link text-white" href="#">{{ post.name }}</a></span
+      ><a
+        routerLink="/profile/{{ post.ownerid }}"
+        ngClass
+        class="link text-white"
+        href="#"
+        >{{ post.name }}</a
+      ></span
     >
   </div>
   <div class="card-body">
@@ -68,13 +74,17 @@
             class="comment p-3 my-2 rounded"
           >
             <div class="comment-user">
-              <a href="#"
+              <a routerLink="/profile/{{ comment.commenter_id }}"
                 ><img
-                  src="/assets/images/{{ comment.commenter_profile_image }}"
+                  src="/assets/images/{{ comment.commenter_profile_image }}.jpg"
                   class="rounded-circle profile-img-sm"
               /></a>
               <span class="ml-2"
-                ><a href="#" class="link">{{ comment.commenter_name }}</a></span
+                ><a
+                  routerLink="/profile/{{ comment.commenter_id }}"
+                  class="link"
+                  >{{ comment.commenter_name }}</a
+                ></span
               >
             </div>
             <div class="comment-body pl-3 mt-2">

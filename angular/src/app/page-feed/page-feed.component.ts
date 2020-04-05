@@ -20,26 +20,25 @@ export class PageFeedComponent implements OnInit {
   ngOnInit() {
     this.title.setTitle("ChatOn - Your Feed");
     let requestObject = {
-      type: "GET",
-      location: "users/generate-feed",
-      authorize: true
+      method: "GET",
+      location: "users/generate-feed"
     };
     this.api.makeRequest(requestObject).then(val => {
       if (val.statusCode === 200) {
-        this.posts.col1 = val.posts.filter((val, i) => i % 4 === 0);
-        this.posts.col2 = val.posts.filter((val, i) => i % 4 === 1);
-        this.posts.col3 = val.posts.filter((val, i) => i % 4 === 2);
-        this.posts.col4 = val.posts.filter((val, i) => i % 4 === 3);
+        let fullCOl1 = val.posts.filter((val, i) => i % 4 === 0);
+        let fullCOl2 = val.posts.filter((val, i) => i % 4 === 1);
+        let fullCOl3 = val.posts.filter((val, i) => i % 4 === 2);
+        let fullCOl4 = val.posts.filter((val, i) => i % 4 === 3);
+
+        let cols = [fullCOl1, fullCOl2, fullCOl3, fullCOl4];
+
+        this.addPostToFeed(cols, 0, 0);
       } else {
         console.log("Something went worng your feeds can not be created");
         this.events.onAlertEvent.emit(
           "Something went worng your feeds can not be created"
         );
       }
-
-      console.log(val);
-      console.log("POST OBJECT");
-      console.log(this.posts);
     });
   }
 
@@ -67,8 +66,7 @@ export class PageFeedComponent implements OnInit {
     console.log("Create Post");
     let requestObject = {
       location: "users/create-post",
-      type: "POST",
-      authorize: true,
+      method: "POST",
       body: {
         theme: this.newPostTheme,
         content: this.newPostContent
@@ -87,5 +85,16 @@ export class PageFeedComponent implements OnInit {
       }
       this.newPostContent = "";
     });
+  }
+  private addPostToFeed(array, colNumber, delay) {
+    setTimeout(() => {
+      if (array[colNumber].length) {
+        this.posts["col" + (colNumber + 1)].push(
+          array[colNumber].splice(0, 1)[0]
+        );
+        colNumber = ++colNumber % 4;
+        this.addPostToFeed(array, colNumber, 100);
+      }
+    }, delay);
   }
 }

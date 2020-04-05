@@ -10,17 +10,14 @@ export class LocalStorageService {
   postThemeName = "--post-theme-ASM-PROD";
   public set(key, value) {
     if (localStorage) {
-      console.log("aaaaa");
       localStorage.setItem(key, value);
     } else {
-      console.log("ddddddddd");
       alert("Browser does not support the localStorage API");
     }
   }
 
   public get(key) {
     if (localStorage) {
-      console.log("bbbbbbb");
       if (key in localStorage) {
         return localStorage.getItem(key);
       } else {

@@ -3,11 +3,14 @@ import { UserDataService } from "../user-data.service";
 import { ApiService } from "../api.service";
 import { Title } from "@angular/platform-browser";
 import { DOCUMENT } from "@angular/common";
+import { AutoUnsubscribe } from "../unsubscribe";
+
 @Component({
   selector: "app-page-friend-requests",
   templateUrl: "./page-friend-requests.component.html",
   styleUrls: ["./page-friend-requests.component.css"]
 })
+@AutoUnsubscribe
 export class PageFriendRequestsComponent implements OnInit {
   constructor(
     private centralUserData: UserDataService,
@@ -19,25 +22,24 @@ export class PageFriendRequestsComponent implements OnInit {
   ngOnInit() {
     this.document.getElementById("sidebarToggleTop").classList.add("d-none");
     this.title.setTitle("ChatOn - Friend Request");
-    this.centralUserData.getUserData.subscribe(data => {
+    let userDataEvent = this.centralUserData.getUserData.subscribe(data => {
       this.userData = data;
-      console.log(this.userData);
+
       let array = JSON.stringify(data.friend_requests);
       let requestObject = {
         location: `users/get-friend-requests?friend_requests=${array}`,
-        type: "GET",
-        authorize: true
+        method: "GET"
       };
 
       this.api.makeRequest(requestObject).then(val => {
-        console.log(val);
         if (val.statusCode === 200) {
           this.friendRequests = val.users;
         }
       });
     });
+    this.subscriptions.push(userDataEvent);
   }
-
+  private subscriptions = [];
   public userData: object = {};
   public friendRequests = [];
 

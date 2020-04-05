@@ -46,11 +46,6 @@ export class PostComponent implements OnInit {
     if (this.post.likes.includes(this.userId)) {
       this.liked = true;
     }
-
-    console.log("-------------------------");
-    console.log("-------------------------");
-    console.log(this.post);
-    console.log("-------------------------");
   }
   public fakeId: string = "fakeId";
   public fontSize: number = 18;
@@ -61,15 +56,12 @@ export class PostComponent implements OnInit {
   public comment: string = "";
 
   public likeButtonClicked(postid) {
-    console.log("Like or dislike", postid);
     let requestObject = {
       location: `users/like-unlike/${this.post.ownerid}/${this.post._id}`,
-      type: "POST",
-      authorize: true
+      method: "POST"
     };
 
     this.api.makeRequest(requestObject).then(val => {
-      console.log(val);
       if (this.post.likes.includes(this.userId)) {
         this.post.likes.splice(this.post.likes.indexOf(this.userId), 1);
         this.liked = false;
@@ -79,27 +71,25 @@ export class PostComponent implements OnInit {
       }
     });
   }
+
   public postComment() {
     if (this.comment.length == 0) {
       return;
     }
-    console.log("Commenting...", this.comment);
 
     let requestObject = {
       location: `users/post-comment/${this.post.ownerid}/${this.post._id}`,
-      type: "POST",
-      authorize: true,
+      method: "POST",
       body: { content: this.comment }
     };
     this.api.makeRequest(requestObject).then(val => {
-      console.log(val);
       if (val.statusCode == 201) {
         let newComment = {
           ...val.comment,
           commenter_name: val.commenter.name,
           commenter_profile_image: val.commenter.profile_image
         };
-        console.log(newComment);
+
         this.post.comments.push(newComment);
         this.comment = "";
       }

@@ -4,16 +4,20 @@ import { ApiService } from "../api.service";
 import { Title } from "@angular/platform-browser";
 import { DOCUMENT } from "@angular/common";
 import { UserDataService } from "../user-data.service";
+import { AutoUnsubscribe } from "../unsubscribe";
+
 @Component({
   selector: "app-page-searches",
   templateUrl: "./page-searches.component.html",
   styleUrls: ["./page-searches.component.css"]
 })
+@AutoUnsubscribe
 export class PageSearchesComponent implements OnInit {
   public results;
   public query = this.route.snapshot.params.query;
-  private subscription: any;
+  // private subscription: any;
   private user;
+  private subscriptions = [];
   constructor(
     private api: ApiService,
     private route: ActivatedRoute,
@@ -25,20 +29,20 @@ export class PageSearchesComponent implements OnInit {
   ngOnInit() {
     this.document.getElementById("sidebarToggleTop").classList.add("d-none");
     this.title.setTitle("ChatOn - Search");
-    this.centralUserData.getUserData.subscribe(data => {
-      this.subscription = this.route.params.subscribe(params => {
+    let userDataEvent = this.centralUserData.getUserData.subscribe(data => {
+      this.route.params.subscribe(params => {
         this.query = params.query;
 
         this.user = data;
         this.getResults();
       });
     });
+    this.subscriptions.push(userDataEvent);
   }
   private getResults() {
     let requestObject = {
       location: `users/get-search-results?query=${this.query}`,
-      type: "GET",
-      authorize: true
+      method: "GET"
     };
 
     this.api.makeRequest(requestObject).then(val => {

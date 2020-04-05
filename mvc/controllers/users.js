@@ -3,9 +3,10 @@ const mongoose = require("mongoose");
 const User = mongoose.model("User");
 const Post = mongoose.model("Post");
 const Comment = mongoose.model("Comment");
+const Message = mongoose.model("Message");
 const timeAgo = require("time-ago");
 
-const containsDuplicate = function(array) {
+const containsDuplicate = function (array) {
   array.sort();
   for (let i = 0; i < array.length; i++) {
     if (array[i] == array[i + 1]) {
@@ -14,12 +15,12 @@ const containsDuplicate = function(array) {
   }
 };
 
-const addCommentDetails = function(posts) {
-  return new Promise(function(resolve, reject) {
+const addCommentDetails = function (posts) {
+  return new Promise(function (resolve, reject) {
     let promises = [];
     for (let post of posts) {
       for (let comment of post.comments) {
-        let promise = new Promise(function(resolve, reject) {
+        let promise = new Promise(function (resolve, reject) {
           User.findById(
             comment.commenter_id,
             "name profile_image",
@@ -36,14 +37,26 @@ const addCommentDetails = function(posts) {
         promises.push(promise);
       }
     }
-    Promise.all(promises).then(val => {
-      console.log(val);
+    Promise.all(promises).then((val) => {
       resolve(posts);
     });
   });
 };
 
-const registerUser = function({ body }, res) {
+const getRandom = function (min, max) {
+  return Math.floor(Math.random() * (max - min)) + min;
+};
+
+const addToPosts = function (array, user) {
+  for (item of array) {
+    item.name = user.name;
+    item.ago = timeAgo.ago(item.date);
+    item.ownerid = user._id;
+    item.ownerProfileImage = user.profile_image;
+  }
+};
+
+const registerUser = function ({ body }, res) {
   if (
     !body.first_name ||
     !body.last_name ||
@@ -84,7 +97,7 @@ const registerUser = function({ body }, res) {
   });
 };
 
-const loginUser = function(req, res) {
+const loginUser = function (req, res) {
   if (!req.body.email || !req.body.password) {
     return res.status(400).json({ message: "All fields are required" });
   }
@@ -103,19 +116,11 @@ const loginUser = function(req, res) {
   })(req, res);
 };
 
-const generateFeed = function({ payload }, res) {
+const generateFeed = function ({ payload }, res) {
   const posts = [];
   const maxAmountOfPosts = 48;
-  function addToPosts(array, user) {
-    for (item of array) {
-      item.name = user.name;
-      item.ago = timeAgo.ago(item.date);
-      item.ownerid = user._id;
-      item.ownerProfileImage = user.profile_image;
-    }
-  }
 
-  let myPosts = new Promise(function(resolve, reject) {
+  let myPosts = new Promise(function (resolve, reject) {
     User.findById(
       payload._id,
       "name posts profile_image friends",
@@ -131,8 +136,8 @@ const generateFeed = function({ payload }, res) {
     );
   });
 
-  let myFriendsPosts = myPosts.then(friendsArray => {
-    return new Promise(function(resolve, reject) {
+  let myFriendsPosts = myPosts.then((friendsArray) => {
+    return new Promise(function (resolve, reject) {
       User.find(
         { _id: { $in: friendsArray } },
         "name profile_image posts",
@@ -154,13 +159,13 @@ const generateFeed = function({ payload }, res) {
     posts.sort((a, b) => (a.date > b.date ? -1 : 1));
 
     finalPost = posts.slice(0, maxAmountOfPosts);
-    addCommentDetails(finalPost).then(finalPost => {
+    addCommentDetails(finalPost).then((finalPost) => {
       res.statusJson(200, { posts: finalPost });
     });
   });
 };
 
-const getSearchResults = function({ query, payload }, res) {
+const getSearchResults = function ({ query, payload }, res) {
   if (!query.query) {
     return res.json({ err: "Missing a query" });
   }
@@ -185,7 +190,7 @@ const getSearchResults = function({ query, payload }, res) {
   );
 };
 
-const deleteAllUsers = function(req, res) {
+const deleteAllUsers = function (req, res) {
   User.deleteMany({}, (err, info) => {
     if (err) {
       return res.send({ error: err });
@@ -194,13 +199,12 @@ const deleteAllUsers = function(req, res) {
   });
 };
 
-const makeFriendRequest = function({ params }, res) {
+const makeFriendRequest = function ({ params }, res) {
   User.findById(params.to, (err, user) => {
     if (err) {
       return res.json({ err, err });
     }
     if (containsDuplicate([params.from, ...user.friend_requests])) {
-      console.log(user);
       return res.json({ message: "Friend Request is already send" });
     }
 
@@ -211,25 +215,105 @@ const makeFriendRequest = function({ params }, res) {
       }
 
       return res.statusJson(201, {
-        message: "Successfully send a friend request."
+        message: "Successfully send a friend request.",
       });
     });
   });
 };
 
-const getUserData = function({ params }, res) {
-  User.findById(params.userId, (err, user) => {
-    if (err) {
-      return res.json({ err: err });
+const getUserData = function ({ params }, res) {
+  User.findById(
+    params.userId,
+    "-salt -password",
+    { lean: true },
+    (err, user) => {
+      if (err) {
+        return res.json({ err: err });
+      }
+
+      function getRandomFriends(friendsList) {
+        let copyOfFriendsList = Array.from(friendsList);
+        let randomIds = [];
+
+        for (let i = 0; i < 6; i++) {
+          if (friendsList.length <= 6) {
+            randomIds = copyOfFriendsList;
+            break;
+          }
+          let randomId = getRandom(0, copyOfFriendsList.length);
+          randomIds.push(copyOfFriendsList[randomId]);
+          copyOfFriendsList.splice(randomId, 1);
+        }
+        return new Promise(function (resolve, reject) {
+          User.find(
+            { _id: { $in: randomIds } },
+            "name profile_image",
+            (err, friends) => {
+              if (err) {
+                return res.json({ err: err });
+              }
+              resolve(friends);
+            }
+          );
+        });
+      }
+
+      function addMessengerDetails(messages) {
+        return new Promise(function (resolve, reject) {
+          if (!messages.length) {
+            resolve(messages);
+          }
+
+          let usersArray = [];
+          for (let message of messages) {
+            usersArray.push(message.from_id);
+          }
+
+          User.find(
+            { _id: { $in: usersArray } },
+            "name profile_image",
+            (err, users) => {
+              if (err) {
+                return res.send({ error: err });
+              }
+
+              for (message of messages) {
+                for (let i = 0; i < users.length; i++) {
+                  if (message.from_id == users[i]._id) {
+                    message.messengerName = users[i].name;
+                    message.messengerProfileImage = users[i].profile_image;
+                    users.splice(i, 1);
+                    break;
+                  }
+                }
+              }
+              resolve(messages);
+            }
+          );
+        });
+      }
+
+      user.posts.sort((a, b) => (a.date > b.date ? -1 : 1));
+      addToPosts(user.posts, user);
+      let randomFriends = getRandomFriends(user.friends);
+      let commentDetails = addCommentDetails(user.posts);
+      let messageDetails = addMessengerDetails(user.messages);
+
+      Promise.all([randomFriends, commentDetails, messageDetails]).then(
+        (val) => {
+          user.random_friends = val[0];
+          user.messages = val[2];
+
+          res.statusJson(200, { user: user });
+        }
+      );
     }
-    console.log(user);
-    res.statusJson(200, { user: user });
-  });
+  );
 };
 
-const getFriendRequests = function({ query }, res) {
+const getFriendRequests = function ({ query }, res) {
   let friendRequests = JSON.parse(query.friend_requests);
-  console.log(friendRequests);
+
   User.find(
     { _id: { $in: friendRequests } },
     "name profile_image",
@@ -239,13 +323,13 @@ const getFriendRequests = function({ query }, res) {
       }
       return res.statusJson(200, {
         message: "Getting friend requests",
-        users: users
+        users: users,
       });
     }
   );
 };
 
-const resolveFriendRequest = function({ query, params }, res) {
+const resolveFriendRequest = function ({ query, params }, res) {
   User.findById(params.to, (err, user) => {
     if (err) {
       return res.json({ err: err });
@@ -258,7 +342,7 @@ const resolveFriendRequest = function({ query, params }, res) {
       }
     }
 
-    let promise = new Promise(function(resolve, reject) {
+    let promise = new Promise(function (resolve, reject) {
       if (query.resolution == "accept") {
         if (containsDuplicate([params.from, ...user.friends])) {
           return res.json({ message: "Dupliacte Error" });
@@ -292,17 +376,17 @@ const resolveFriendRequest = function({ query, params }, res) {
           return res.json({ err: err });
         }
         res.statusJson(201, {
-          message: "Resolved friend request"
+          message: "Resolved friend request",
         });
       });
     });
   });
 };
 
-const createPost = function({ body, payload }, res) {
+const createPost = function ({ body, payload }, res) {
   if (!body.content || !body.theme) {
     return res.statusJson(400, {
-      message: "Insufficient data send with the request"
+      message: "Insufficient data send with the request",
     });
   }
   let userId = payload._id;
@@ -320,20 +404,20 @@ const createPost = function({ body, payload }, res) {
     newPost.ownerProfileImage = user.profile_image;
 
     user.posts.push(post);
-    user.save(err => {
+    user.save((err) => {
       if (err) {
         return res.json({ err: err });
       }
 
       return res.statusJson(201, {
         message: "Created Post",
-        newPost: newPost
+        newPost: newPost,
       });
     });
   });
 };
 
-const getAllUsers = function(req, res) {
+const getAllUsers = function (req, res) {
   User.find((err, users) => {
     if (err) {
       return res.send({ error: err });
@@ -342,7 +426,7 @@ const getAllUsers = function(req, res) {
   });
 };
 
-const likeUnlike = function({ payload, params }, res) {
+const likeUnlike = function ({ payload, params }, res) {
   User.findById(params.ownerid, (err, user) => {
     if (err) {
       return res.json({ err: err });
@@ -362,7 +446,7 @@ const likeUnlike = function({ payload, params }, res) {
   });
 };
 
-const postCommentOnPost = function({ body, payload, params }, res) {
+const postCommentOnPost = function ({ body, payload, params }, res) {
   User.findById(params.ownerid, (err, user) => {
     if (err) {
       return res.json({ err: err });
@@ -380,12 +464,115 @@ const postCommentOnPost = function({ body, payload, params }, res) {
         if (err) {
           return res.json({ err: err });
         }
+        console.log("Comment Success");
         res.statusJson(201, {
           message: "Posted Comment",
           comment: comment,
-          commenter: user
+          commenter: user,
         });
       });
+    });
+  });
+};
+
+const sendMessage = function ({ body, payload, params }, res) {
+  let from = payload._id;
+  let to = params.to;
+
+  let fromPromise = new Promise(function (resolve, reject) {
+    User.findById(from, "messages", (err, user) => {
+      if (err) {
+        reject("Error", err);
+        return res.json({ err: err });
+      }
+      from = user;
+      resolve(user);
+    });
+  });
+
+  let toPromise = new Promise(function (resolve, reject) {
+    User.findById(to, "messages new_message_notifications", (err, user) => {
+      if (err) {
+        reject("Error", err);
+        return res.json({ err: err });
+      }
+      to = user;
+      resolve(user);
+    });
+  });
+
+  let sendMessagePromise = Promise.all([fromPromise, toPromise]).then(() => {
+    function hasMessageFrom(messages, id) {
+      for (let message of messages) {
+        if (message.from_id == id) {
+          return message;
+        }
+      }
+    }
+
+    function sendMessageTo(to, from, notify = false) {
+      return new Promise(function (resolve, reject) {
+        if (notify && !to.new_message_notifications.includes(from._id)) {
+          to.new_message_notifications.push(from._id);
+        }
+        if ((foundMessage = hasMessageFrom(to.messages, from._id))) {
+          foundMessage.content.push(message);
+          to.save((err, user) => {
+            if (err) {
+              reject("Error", err);
+              return res.json({ err: err });
+            }
+            resolve(user);
+          });
+        } else {
+          let newMessage = new Message();
+          newMessage.from_id = from._id;
+          newMessage.content = [message];
+          to.messages.push(newMessage);
+          to.save((err, user) => {
+            if (err) {
+              reject("Error", err);
+              return res.json({ err: err });
+            }
+            resolve(user);
+          });
+        }
+      });
+    }
+
+    let message = {
+      messenger: from._id,
+      message: body.content,
+    };
+
+    let sendMessageToRecipient = sendMessageTo(to, from, true);
+    let sendMessageToAuthor = sendMessageTo(from, to);
+
+    return new Promise(function (resolve, reject) {
+      Promise.all([sendMessageToRecipient, sendMessageToAuthor]).then(() => {
+        resolve();
+      });
+    });
+  });
+
+  sendMessagePromise.then(() => {
+    return res.statusJson(201, {
+      message: "Sending Message",
+    });
+  });
+};
+
+const resetMessageNotifications = function ({ payload }, res) {
+  User.findById(payload._id, (err, user) => {
+    if (err) {
+      return res.json({ err: err });
+    }
+    user.new_message_notifications = [];
+    user.save((err) => {
+      if (err) {
+        return res.json({ err: err });
+      }
+      return res.statusJson(201, { message: "Reset message notifications." });
     });
   });
 };
@@ -403,5 +590,7 @@ module.exports = {
   resolveFriendRequest,
   createPost,
   likeUnlike,
-  postCommentOnPost
+  postCommentOnPost,
+  sendMessage,
+  resetMessageNotifications,
 };

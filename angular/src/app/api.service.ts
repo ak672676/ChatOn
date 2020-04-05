@@ -4,7 +4,7 @@ import { LocalStorageService } from "./local-storage.service";
 import { EventEmitterService } from "./event-emitter.service";
 import { resolve } from "url";
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class ApiService {
   constructor(
@@ -23,9 +23,9 @@ export class ApiService {
   }
 
   public makeRequest(requestObject): any {
-    let type = requestObject.type.toLowerCase();
-    if (!type) {
-      return console.log("No type specified in the request object");
+    let method = requestObject.method.toLowerCase();
+    if (!method) {
+      return console.log("No method specified in the request object");
     }
     let body = requestObject.body || {};
     let location = requestObject.location;
@@ -37,16 +37,15 @@ export class ApiService {
 
     let httpOptions = {};
 
-    if (requestObject.authorize) {
-      console.log("API");
+    if (this.storage.getToken()) {
       httpOptions = {
         headers: new HttpHeaders({
-          Authorization: `Bearer ${this.storage.getToken()}`
-        })
+          Authorization: `Bearer ${this.storage.getToken()}`,
+        }),
       };
     }
 
-    if (type === "get") {
+    if (method === "get") {
       return this.http
         .get(url, httpOptions)
         .toPromise()
@@ -54,7 +53,7 @@ export class ApiService {
         .catch(this.errorHandler);
     }
 
-    if (type === "post") {
+    if (method === "post") {
       return this.http
         .post(url, body, httpOptions)
         .toPromise()
@@ -62,7 +61,7 @@ export class ApiService {
         .catch(this.errorHandler);
     }
     console.log(
-      "Could not make the request.Make sure a type of GET or POST is supplied"
+      "Could not make the request.Make sure a method of GET or POST is supplied"
     );
   }
 
@@ -71,18 +70,21 @@ export class ApiService {
 
     let requestObject = {
       location: `users/make-friend-request/${from}/${to}`,
-      type: "POST",
-      authorize: true
+      method: "POST",
     };
-    this.makeRequest(requestObject).then(val => {
-      console.log(val);
-      if (val.statusCode === 201) {
-        this.events.onAlertEvent.emit("Successfully send a friend request.");
-      } else {
-        this.events.onAlertEvent.emit(
-          "Something went wrong and we could not send a friend request.May be you would alraedy send a request."
-        );
-      }
+
+    return new Promise((resolve, reject) => {
+      this.makeRequest(requestObject).then((val) => {
+        console.log(val);
+        if (val.statusCode === 201) {
+          this.events.onAlertEvent.emit("Successfully send a friend request.");
+        } else {
+          this.events.onAlertEvent.emit(
+            "Something went wrong and we could not send a friend request.May be you would alraedy send a request."
+          );
+        }
+        resolve(val);
+      });
     });
   }
 
@@ -91,10 +93,9 @@ export class ApiService {
     return new Promise((resolve, reject) => {
       let requestObject = {
         location: `users/resolve-friend-request/${id}/${to}?resolution=${resolution}`,
-        type: "POST",
-        authorize: true
+        method: "POST",
       };
-      this.makeRequest(requestObject).then(val => {
+      this.makeRequest(requestObject).then((val) => {
         if (val.statusCode === 201) {
           this.events.updateNumOfFriendRequestsEvent.emit();
           let resolutioned = resolution == "accept" ? "accepted" : "declined";
@@ -107,6 +108,47 @@ export class ApiService {
           );
         }
         resolve(val);
+      });
+    });
+  }
+
+  public sendMessage(sendMessageObject) {
+    if (!sendMessageObject.content) {
+      this.events.onAlertEvent.emit(
+        "Message not sent.You must provide some content for your message"
+      );
+      return;
+    }
+    let requestObject = {
+      location: `users/send-message/${sendMessageObject.id}`,
+      method: "POST",
+      body: {
+        content: sendMessageObject.content,
+      },
+    };
+    return new Promise((resolve, reject) => {
+      this.makeRequest(requestObject).then((val) => {
+        console.log("API");
+        console.log(val);
+        if (val.statusCode == 201) {
+          this.events.onAlertEvent.emit("Successfully sent a message.");
+        }
+        resolve(val);
+      });
+    });
+  }
+
+  public resetMessageNotifications() {
+    let requestObject = {
+      location: "users/reset-message-notifications",
+      method: "POST",
+    };
+    return new Promise((resolve, reject) => {
+      this.makeRequest(requestObject).then((val) => {
+        if (val.statusCode == 201) {
+          this.events.resetMessageNotificationsEvent.emit();
+        }
+        resolve();
       });
     });
   }
