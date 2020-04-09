@@ -1,5 +1,9 @@
 .message {
   background-color: #f5f5f5 !important;
+  cursor: pointer;
+}
+.message:hover {
+  background-color: #eeeeee !important;
 }
 .message-container {
   max-width: 75%;

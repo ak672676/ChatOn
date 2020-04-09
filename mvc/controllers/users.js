@@ -56,6 +56,52 @@ const addToPosts = function (array, user) {
   }
 };
 
+const alertUser = function (fromUser, toId, type, postContent) {
+  return new Promise(function (resolve, reject) {
+    let alert = {
+      alert_type: type,
+      from_id: fromUser._id,
+      from_name: fromUser.name,
+    };
+
+    if (postContent && postContent.length > 28) {
+      postContent = postContent.substring(0, 28) + "...";
+    }
+
+    switch (type) {
+      case "new_friend":
+        alert.alert_text = `${alert.from_name} has accepted your friend request.`;
+        break;
+      case "liked_post":
+        alert.alert_text = `${alert.from_name} has like your post, '${postContent}'.`;
+        break;
+      case "commented_post":
+        alert.alert_text = `${alert.from_name} has commented on your post, '${postContent}'.`;
+        break;
+      default:
+        return reject("No valid type for alert.");
+    }
+
+    User.findById(toId, (err, user) => {
+      if (err) {
+        reject("Error:", err);
+        return res.json({ err: err });
+      }
+
+      user.new_notifications++;
+      user.notifications.splice(18);
+      user.notifications.unshift(JSON.stringify(alert));
+      user.save((err) => {
+        if (err) {
+          reject("Error:", err);
+          return res.json({ err: err });
+        }
+        resolve();
+      });
+    });
+  });
+};
+
 const registerUser = function ({ body }, res) {
   if (
     !body.first_name ||
@@ -117,51 +163,66 @@ const loginUser = function (req, res) {
 };
 
 const generateFeed = function ({ payload }, res) {
-  const posts = [];
-  const maxAmountOfPosts = 48;
+  let posts = [];
+  let bestiePosts = [];
 
   let myPosts = new Promise(function (resolve, reject) {
-    User.findById(
-      payload._id,
-      "name posts profile_image friends",
-      { lean: true },
-      (err, user) => {
-        if (err) {
-          return res.status(400).json(err);
-        }
-        addToPosts(user.posts, user);
-        posts.push(...user.posts);
-        resolve(user.friends);
+    User.findById(payload._id, "", { lean: true }, (err, user) => {
+      if (err) {
+        return res.statusJson(400, { err: err });
       }
-    );
+      if (!user) {
+        return res.json(404, { message: "User does not exist." });
+      }
+      addToPosts(user.posts, user);
+      posts.push(...user.posts);
+
+      user.friends = user.friends.filter((val) => {
+        return !user.besties.includes(val);
+      });
+
+      resolve(user);
+    });
   });
 
-  let myFriendsPosts = myPosts.then((friendsArray) => {
+  function getPostsFrom(arrayOfUsers, maxAmountOfPosts, postsArray) {
     return new Promise(function (resolve, reject) {
       User.find(
-        { _id: { $in: friendsArray } },
-        "name profile_image posts",
+        { _id: { $in: arrayOfUsers } },
+        "name posts profile_image",
         { lean: true },
         (err, users) => {
           if (err) {
-            return res.status(400).json(err);
+            reject("Error", err);
+            return res.json({ err: err });
           }
+
           for (user of users) {
             addToPosts(user.posts, user);
-            posts.push(...user.posts);
+            postsArray.push(...user.posts);
           }
-          resolve();
+
+          postsArray.sort((a, b) => (a.date > b.date ? -1 : 1));
+          postsArray.splice(maxAmountOfPosts);
+
+          addCommentDetails(postsArray).then(() => {
+            resolve();
+          });
         }
       );
     });
-  });
-  myFriendsPosts.then(() => {
-    posts.sort((a, b) => (a.date > b.date ? -1 : 1));
+  }
 
-    finalPost = posts.slice(0, maxAmountOfPosts);
-    addCommentDetails(finalPost).then((finalPost) => {
-      res.statusJson(200, { posts: finalPost });
-    });
+  let myBestiesPosts = myPosts.then(({ besties }) => {
+    return getPostsFrom(besties, 4, bestiePosts);
+  });
+
+  let myFriendsPosts = myPosts.then(({ friends }) => {
+    return getPostsFrom(friends, 48, posts);
+  });
+
+  Promise.all([myBestiesPosts, myFriendsPosts]).then(() => {
+    res.statusJson(200, { posts, bestiePosts });
   });
 };
 
@@ -299,14 +360,39 @@ const getUserData = function ({ params }, res) {
       let commentDetails = addCommentDetails(user.posts);
       let messageDetails = addMessengerDetails(user.messages);
 
-      Promise.all([randomFriends, commentDetails, messageDetails]).then(
-        (val) => {
-          user.random_friends = val[0];
-          user.messages = val[2];
+      let besties = new Promise(function (resolve, reject) {
+        User.find(
+          { _id: { $in: user.besties } },
+          "name profile_image",
+          (err, users) => {
+            user.besties = users;
+            resolve();
+          }
+        );
+      });
+      let enemies = new Promise(function (resolve, reject) {
+        User.find(
+          { _id: { $in: user.enemies } },
+          "name profile_image",
+          (err, users) => {
+            user.enemies = users;
+            resolve();
+          }
+        );
+      });
+      let waitFor = [
+        randomFriends,
+        commentDetails,
+        messageDetails,
+        besties,
+        enemies,
+      ];
+      Promise.all(waitFor).then((val) => {
+        user.random_friends = val[0];
+        user.messages = val[2];
 
-          res.statusJson(200, { user: user });
-        }
-      );
+        res.statusJson(200, { user: user });
+      });
     }
   );
 };
@@ -375,8 +461,10 @@ const resolveFriendRequest = function ({ query, params }, res) {
         if (err) {
           return res.json({ err: err });
         }
-        res.statusJson(201, {
-          message: "Resolved friend request",
+        alertUser(user, params.from, "new_friend").then(() => {
+          res.statusJson(201, {
+            message: "Resolved friend request",
+          });
         });
       });
     });
@@ -431,17 +519,41 @@ const likeUnlike = function ({ payload, params }, res) {
     if (err) {
       return res.json({ err: err });
     }
+
     const post = user.posts.id(params.postid);
-    if (post.likes.includes(payload._id)) {
-      post.likes.splice(post.likes.indexOf(payload._id, 1));
-    } else {
-      post.likes.push(payload._id);
-    }
-    user.save((err, user) => {
-      if (err) {
-        return res.json({ err: err });
+
+    let promise = new Promise(function (resolve, reject) {
+      if (post.likes.includes(payload._id)) {
+        post.likes.splice(post.likes.indexOf(payload._id), 1);
+        resolve();
+      } else {
+        post.likes.push(payload._id);
+
+        if (params.ownerid != payload._id) {
+          User.findById(payload._id, (err, user) => {
+            if (err) {
+              reject("Error:", err);
+              return res.json({ err: err });
+            }
+            alertUser(user, params.ownerid, "liked_post", post.content).then(
+              () => {
+                resolve();
+              }
+            );
+          });
+        } else {
+          resolve();
+        }
       }
-      res.statusJson(201, { message: "Like or Unlike" });
+    });
+
+    promise.then(() => {
+      user.save((err, user) => {
+        if (err) {
+          return res.json({ err: err });
+        }
+        res.statusJson(201, { message: "Like or Unlike a post..." });
+      });
     });
   });
 };
@@ -451,24 +563,45 @@ const postCommentOnPost = function ({ body, payload, params }, res) {
     if (err) {
       return res.json({ err: err });
     }
+
     const post = user.posts.id(params.postid);
+
     let comment = new Comment();
     comment.commenter_id = payload._id;
     comment.comment_content = body.content;
     post.comments.push(comment);
+
     user.save((err, user) => {
       if (err) {
         return res.json({ err: err });
       }
+
       User.findById(payload._id, "name profile_image", (err, user) => {
         if (err) {
           return res.json({ err: err });
         }
-        console.log("Comment Success");
-        res.statusJson(201, {
-          message: "Posted Comment",
-          comment: comment,
-          commenter: user,
+
+        let promise = new Promise(function (resolve, reject) {
+          if (payload._id != params.ownerid) {
+            alertUser(
+              user,
+              params.ownerid,
+              "commented_post",
+              post.content
+            ).then(() => {
+              resolve();
+            });
+          } else {
+            resolve();
+          }
+        });
+
+        promise.then(() => {
+          res.statusJson(201, {
+            message: "Posted Comment",
+            comment: comment,
+            commenter: user,
+          });
         });
       });
     });
@@ -577,6 +710,71 @@ const resetMessageNotifications = function ({ payload }, res) {
   });
 };
 
+const deleteMessage = function ({ payload, params }, res) {
+  User.findById(payload._id, (err, user) => {
+    if (err) {
+      return res.json({ err: err });
+    }
+
+    const message = user.messages.id(params.messageid).remove();
+    user.save((err) => {
+      if (err) {
+        return res.json({ err: err });
+      }
+      return res.statusJson(201, { message: "Deleted Message" });
+    });
+  });
+};
+
+const bestieEnemyToggle = function ({ payload, params, query }, res) {
+  let toggle = query.toggle;
+  if (toggle != "besties" && toggle != "enemies") {
+    return res.json({ message: "Incorrect query supplied" });
+  }
+  let myId = payload._id;
+  let friendId = params.userid;
+
+  User.findById(myId, (err, user) => {
+    if (err) {
+      return res.json({ err: err });
+    }
+    if (!user.friends.includes(friendId)) {
+      return res.json({ message: "You are not friend with the user." });
+    }
+
+    let arr = user[toggle];
+    if (arr.includes(friendId)) {
+      arr.splice(arr.indexOf(friendId), 1);
+    } else {
+      if (toggle == "besties" && user.besties.length >= 2) {
+        return res.json({ message: "You have max amount of besties." });
+      }
+      arr.push(friendId);
+    }
+    user.save((err) => {
+      if (err) {
+        return res.json({ err: err });
+      }
+      return res.statusJson(201, { message: "Bestie/Enemy Toggle" });
+    });
+  });
+};
+
+const resetAlertNotifications = function ({ payload }, res) {
+  User.findById(payload._id, (err, user) => {
+    if (err) {
+      return res.json({ err: err });
+    }
+    user.new_notifications = 0;
+    user.save((err) => {
+      if (err) {
+        return res.json({ err: err });
+      }
+      return res.statusJson(201, { message: "Reset Alert Notifications." });
+    });
+  });
+};
+
 module.exports = {
   getAllUsers,
   deleteAllUsers,
@@ -593,4 +791,7 @@ module.exports = {
   postCommentOnPost,
   sendMessage,
   resetMessageNotifications,
+  deleteMessage,
+  bestieEnemyToggle,
+  resetAlertNotifications,
 };

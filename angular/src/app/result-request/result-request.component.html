@@ -67,16 +67,12 @@
     <button
       *ngIf="haveSentFriendRequest"
       class="btn btn-sm btn-warning rounded-pill ml-1"
-      data-toggle="modal"
-      data-target="#staticBackdrop"
     >
       Friend Request Pending
     </button>
     <button
       *ngIf="isFriend"
       class="btn btn-sm btn-info rounded-pill ml-1"
-      data-toggle="modal"
-      data-target="#staticBackdrop"
       routerLink="/profile/{{ resultRequest._id }}"
     >
       View Profile
@@ -84,8 +80,6 @@
     <button
       *ngIf="use == 'request' || haveRecievedFriendRequest"
       class="btn btn-sm btn-primary rounded-pill ml-1"
-      data-toggle="modal"
-      data-target="#staticBackdrop"
       (click)="accept(); haveRecievedFriendRequest = false; isFriend = true"
     >
       Accept
@@ -103,8 +97,6 @@
     <button
       *ngIf="use == 'request' || haveRecievedFriendRequest"
       class="btn btn-sm btn-danger rounded-pill ml-1"
-      data-toggle="modal"
-      data-target="#staticBackdrop"
       (click)="decline(); haveRecievedFriendRequest = false"
     >
       Decline

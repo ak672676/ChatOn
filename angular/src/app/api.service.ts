@@ -112,8 +112,8 @@ export class ApiService {
     });
   }
 
-  public sendMessage(sendMessageObject) {
-    if (!sendMessageObject.content) {
+  public sendMessage(sendMessageObject, showAlerts = true) {
+    if (!sendMessageObject.content && showAlerts) {
       this.events.onAlertEvent.emit(
         "Message not sent.You must provide some content for your message"
       );
@@ -130,7 +130,7 @@ export class ApiService {
       this.makeRequest(requestObject).then((val) => {
         console.log("API");
         console.log(val);
-        if (val.statusCode == 201) {
+        if (val.statusCode == 201 && showAlerts) {
           this.events.onAlertEvent.emit("Successfully sent a message.");
         }
         resolve(val);

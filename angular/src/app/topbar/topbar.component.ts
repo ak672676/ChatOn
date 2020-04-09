@@ -3,7 +3,7 @@ import { AuthService } from "../auth.service";
 import { Router } from "@angular/router";
 import { LocalStorageService } from "../local-storage.service";
 import { EventEmitterService } from "../event-emitter.service";
-import { UserDataService } from "../user-data.service";
+
 import { ApiService } from "../api.service";
 import { AutoUnsubscribe } from "../unsubscribe";
 @Component({
@@ -18,7 +18,6 @@ export class TopbarComponent implements OnInit {
     private router: Router,
     private storage: LocalStorageService,
     private events: EventEmitterService,
-    private centralUserData: UserDataService,
     private api: ApiService
   ) {}
 
@@ -39,15 +38,15 @@ export class TopbarComponent implements OnInit {
       }
     );
 
-    let userDataEvent = this.centralUserData.getUserData.subscribe((user) => {
+    let userDataEvent = this.events.getUserData.subscribe((user) => {
       // console.log(user.messages);
       this.notifications.friendRequests = user.friend_requests.length;
       this.notifications.messages = user.new_message_notifications.length;
+      this.notifications.alerts = user.new_notifications;
+      // this.notifications.alerts = 11;
       this.profilePicture = user.profile_image;
-
+      this.setAlerts(user.notifications);
       this.setMessagePreviews(user.messages, user.new_message_notifications);
-      console.log(this.messagePreviews);
-      console.log("________________________________________");
     });
 
     let updateMessageEvent = this.events.updateSendMessageObjectEvent.subscribe(
@@ -69,7 +68,7 @@ export class TopbarComponent implements OnInit {
     );
 
     this.api.makeRequest(requestObject).then((val) => {
-      this.centralUserData.getUserData.emit(val.user);
+      this.events.getUserData.emit(val.user);
     });
 
     this.subscriptions.push(
@@ -95,6 +94,7 @@ export class TopbarComponent implements OnInit {
   public usersId: string = "";
   public profilePicture: string = "default-avatar";
   public messagePreviews = [];
+  public alerts = [];
   public notifications = {
     alerts: 0,
     friendRequests: 0,
@@ -114,6 +114,22 @@ export class TopbarComponent implements OnInit {
 
   public resetMessageNotifications() {
     this.api.resetMessageNotifications();
+  }
+
+  public resetAlertNotifications() {
+    if (this.notifications.alerts == 0) {
+      return;
+    }
+    let requestObject = {
+      location: "users/reset-alert-notifications",
+      method: "POST",
+    };
+
+    this.api.makeRequest(requestObject).then((val) => {
+      if (val.statusCode == 201) {
+        this.notifications.alerts = 0;
+      }
+    });
   }
 
   private setMessagePreviews(messages, messageNotifications) {
@@ -139,6 +155,43 @@ export class TopbarComponent implements OnInit {
       } else {
         this.messagePreviews.push(preview);
       }
+    }
+  }
+
+  public messageLink(messageId) {
+    this.router.navigate(["/messages"], {
+      state: { data: { msgId: messageId } },
+    });
+  }
+  private setAlerts(notificationData) {
+    for (let alert of notificationData) {
+      let alertObj = JSON.parse(alert);
+      let newAlert = {
+        text: alertObj.alert_text,
+        icon: "",
+        bgColor: "",
+        href: "",
+      };
+
+      switch (alertObj.alert_type) {
+        case "new_friend":
+          newAlert.icon = "fa-user-check";
+          newAlert.bgColor = "bg-success";
+          newAlert.href = `/profile/${alertObj.from_id}`;
+          break;
+        case "liked_post":
+          newAlert.icon = "fa-thumbs-up";
+          newAlert.bgColor = "bg-purple";
+          newAlert.href = `/profile/${this.usersId}`;
+          break;
+        case "commented_post":
+          newAlert.icon = "fa-comment";
+          newAlert.bgColor = "bg-primary";
+          newAlert.href = `/profile/${this.usersId}`;
+          break;
+      }
+
+      this.alerts.push(newAlert);
     }
   }
 }

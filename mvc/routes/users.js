@@ -5,10 +5,11 @@ const middleware = require("./middleware/middleware");
 const userCtrl = require("../controllers/users");
 const fakeUsersCtrl = require("../controllers/fake-users");
 
+//Login and Register
 router.post("/register", userCtrl.registerUser);
-
 router.post("/login", userCtrl.loginUser);
 
+//Get Requests
 router.get("/generate-feed", middleware.authorize, userCtrl.generateFeed);
 router.get(
   "/get-search-results",
@@ -62,6 +63,24 @@ router.post(
   "/reset-message-notifications",
   middleware.authorize,
   userCtrl.resetMessageNotifications
+);
+
+router.post(
+  "/delete-message/:messageid",
+  middleware.authorize,
+  userCtrl.deleteMessage
+);
+
+router.post(
+  "/bestie-enemy-toggle/:userid",
+  middleware.authorize,
+  userCtrl.bestieEnemyToggle
+);
+
+router.post(
+  "/reset-alert-notifications",
+  middleware.authorize,
+  userCtrl.resetAlertNotifications
 );
 
 module.exports = router;

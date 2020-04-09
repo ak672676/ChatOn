@@ -3,13 +3,14 @@ import { ActivatedRoute } from "@angular/router";
 import { ApiService } from "../api.service";
 import { Title } from "@angular/platform-browser";
 import { DOCUMENT } from "@angular/common";
-import { UserDataService } from "../user-data.service";
+import { EventEmitterService } from "../event-emitter.service";
+
 import { AutoUnsubscribe } from "../unsubscribe";
 
 @Component({
   selector: "app-page-searches",
   templateUrl: "./page-searches.component.html",
-  styleUrls: ["./page-searches.component.css"]
+  styleUrls: ["./page-searches.component.css"],
 })
 @AutoUnsubscribe
 export class PageSearchesComponent implements OnInit {
@@ -22,15 +23,15 @@ export class PageSearchesComponent implements OnInit {
     private api: ApiService,
     private route: ActivatedRoute,
     private title: Title,
-    private centralUserData: UserDataService,
+    private events: EventEmitterService,
     @Inject(DOCUMENT) private document: Document
   ) {}
 
   ngOnInit() {
     this.document.getElementById("sidebarToggleTop").classList.add("d-none");
     this.title.setTitle("ChatOn - Search");
-    let userDataEvent = this.centralUserData.getUserData.subscribe(data => {
-      this.route.params.subscribe(params => {
+    let userDataEvent = this.events.getUserData.subscribe((data) => {
+      this.route.params.subscribe((params) => {
         this.query = params.query;
 
         this.user = data;
@@ -42,10 +43,10 @@ export class PageSearchesComponent implements OnInit {
   private getResults() {
     let requestObject = {
       location: `users/get-search-results?query=${this.query}`,
-      method: "GET"
+      method: "GET",
     };
 
-    this.api.makeRequest(requestObject).then(val => {
+    this.api.makeRequest(requestObject).then((val) => {
       console.log(val);
       this.results = val.results;
       for (let result of this.results) {

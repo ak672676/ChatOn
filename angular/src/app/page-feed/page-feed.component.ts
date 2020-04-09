@@ -7,7 +7,7 @@ import { EventEmitterService } from "../event-emitter.service";
 @Component({
   selector: "app-page-feed",
   templateUrl: "./page-feed.component.html",
-  styleUrls: ["./page-feed.component.css"]
+  styleUrls: ["./page-feed.component.css"],
 })
 export class PageFeedComponent implements OnInit {
   constructor(
@@ -21,10 +21,13 @@ export class PageFeedComponent implements OnInit {
     this.title.setTitle("ChatOn - Your Feed");
     let requestObject = {
       method: "GET",
-      location: "users/generate-feed"
+      location: "users/generate-feed",
     };
-    this.api.makeRequest(requestObject).then(val => {
+    this.api.makeRequest(requestObject).then((val) => {
       if (val.statusCode === 200) {
+        console.log("Best", val.bestiePosts);
+
+        this.bestiePosts = val.bestiePosts;
         let fullCOl1 = val.posts.filter((val, i) => i % 4 === 0);
         let fullCOl2 = val.posts.filter((val, i) => i % 4 === 1);
         let fullCOl3 = val.posts.filter((val, i) => i % 4 === 2);
@@ -42,11 +45,12 @@ export class PageFeedComponent implements OnInit {
     });
   }
 
+  public bestiePosts = [];
   public posts = {
     col1: [],
     col2: [],
     col3: [],
-    col4: []
+    col4: [],
   };
   public newPostContent: string = "";
   public newPostTheme: string = this.storage.getPostTheme() || "primary";
@@ -69,11 +73,11 @@ export class PageFeedComponent implements OnInit {
       method: "POST",
       body: {
         theme: this.newPostTheme,
-        content: this.newPostContent
-      }
+        content: this.newPostContent,
+      },
     };
 
-    this.api.makeRequest(requestObject).then(val => {
+    this.api.makeRequest(requestObject).then((val) => {
       if (val.statusCode == 201) {
         // alert("AMIT");
         val.newPost.ago = "Now";

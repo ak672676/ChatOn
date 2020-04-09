@@ -40,19 +40,20 @@
   </a>
   <div id="besties" class="collapse" data-parent="#accordionSidebar">
     <div class="bg-white py-2 collapse-inner rounded w-100">
-      <div class="m-3">
-        <img
-          class="img-fluid rounded-circle profile-img-sm"
-          src="/assets/images/f1.jpg"
-        />
-        <span class="h6 ml-3"><a href="#">Sarah Parker</a></span>
+      <div *ngIf="!besties.length" class="m-3">
+        You have no besties
       </div>
-      <div class="m-3">
+      <div class="m-3" *ngFor="let bestie of besties">
         <img
+          routerLink="/profile/{{ bestie._id }}"
           class="img-fluid rounded-circle profile-img-sm"
-          src="/assets/images/f1.jpg"
+          src="/assets/images/{{ bestie.profile_image }}.jpg"
         />
-        <span class="h6 ml-3"><a href="#">Sarah Parker</a></span>
+        <span class="h6 ml-3"
+          ><a routerLink="/profile/{{ bestie._id }}" class="link small">{{
+            bestie.name
+          }}</a></span
+        >
       </div>
     </div>
   </div>
@@ -73,22 +74,21 @@
   </a>
   <div id="enemies" class="collapse" data-parent="#accordionSidebar">
     <div class="bg-white py-2 collapse-inner rounded">
-      <div class="m-3">
-        <img
-          class="img-fluid rounded-circle profile-img-sm"
-          src="/assets/images/f1.jpg"
-        />
-        <span class="h6 ml-3"
-          ><a class="text-danger" href="#">Sarah Parker</a></span
-        >
+      <div *ngIf="!enemies.length" class="m-3">
+        You have no enemies
       </div>
-      <div class="m-3">
+      <div class="m-3" *ngFor="let enemy of enemies">
         <img
+          routerLink="/profile/{{ enemy._id }}"
           class="img-fluid rounded-circle profile-img-sm"
-          src="/assets/images/f1.jpg"
+          src="/assets/images/{{ enemy.profile_image }}.jpg"
         />
         <span class="h6 ml-3"
-          ><a class="text-danger" href="#">Sarah Parker</a></span
+          ><a
+            routerLink="/profile/{{ enemy._id }}"
+            class="link small text-danger"
+            >{{ enemy.name }}</a
+          ></span
         >
       </div>
     </div>
